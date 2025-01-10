@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -229,6 +229,245 @@
                     frameborder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 ></iframe>
+            `;
+            document.getElementById('player').classList.remove('hidden');
+        }
+    </script>
+</body>
+
+</html> -->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Recommendation System</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --background-base: #121212;
+            --background-highlight: #1a1a1a;
+            --background-press: #000;
+            --background-elevated-base: #242424;
+            --background-elevated-highlight: #2a2a2a;
+            --text-base: #fff;
+            --text-subdued: #a7a7a7;
+            --essential-base: #fff;
+            --essential-subdued: #727272;
+            --primary: #1ed760;
+        }
+
+        body {
+            background-color: var(--background-base);
+            color: var(--text-base);
+        }
+
+        .sidebar {
+            background-color: var(--background-press);
+            width: 250px;
+            position: fixed;
+            height: 100vh;
+            left: 0;
+            top: 0;
+        }
+
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+        }
+
+        .album-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 24px;
+            padding: 20px;
+        }
+
+        .album-card {
+            background: var(--background-elevated-base);
+            border-radius: 8px;
+            padding: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        .album-card:hover {
+            background: var(--background-elevated-highlight);
+        }
+
+        .player-bar {
+            position: fixed;
+            bottom: 0;
+            left: 250px;
+            right: 0;
+            background: var(--background-press);
+            padding: 16px;
+            z-index: 1000;
+            border-top: 1px solid var(--background-elevated-base);
+        }
+
+        .loading {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #1ed760;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            z-index: 1000;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="sidebar p-4">
+        <h1 class="text-2xl font-bold mb-8">Music Explorer</h1>
+
+        <button class="w-full text-left p-2 hover:bg-gray-800 rounded mb-2">🏠 Home</button>
+        <button class="w-full text-left p-2 hover:bg-gray-800 rounded mb-2">🎵 Your Library</button>
+        <button class="w-full text-left p-2 hover:bg-gray-800 rounded mb-2">❤️ Liked Songs</button>
+
+        <hr class="my-4 border-gray-700">
+
+        <div class="mb-4">
+            <h3 class="text-sm font-semibold mb-2">Discovery Mode</h3>
+            <select id="discoveryMode" class="w-full bg-gray-800 text-white p-2 rounded">
+                <option value="popular">Popular Tracks</option>
+                <option value="hidden">Hidden Gems</option>
+            </select>
+        </div>
+
+        <div>
+            <h3 class="text-sm font-semibold mb-2">Recommendations</h3>
+            <input type="range" id="recommendationCount" min="1" max="10" value="1" class="w-full">
+            <span id="recommendationCountValue" class="text-sm">1</span>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="max-w-4xl mx-auto">
+            <div class="flex items-center mb-8">
+                <select id="songSelect" class="w-full bg-gray-800 text-white p-2 rounded">
+                    <option value="">Select a song...</option>
+                    {% for track in tracks %}
+                    <option value="{{ track }}">{{ track }}</option>
+                    {% endfor %}
+                </select>
+                <button id="getRecommendation"
+                    class="ml-4 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+                    Recommend
+                </button>
+            </div>
+
+            <div id="recommendations"></div>
+        </div>
+    </div>
+
+    <div id="player" class="player-bar hidden"></div>
+
+    <div class="loading" id="loading"></div>
+
+    <script>
+        const songSelect = document.getElementById('songSelect');
+        const discoveryMode = document.getElementById('discoveryMode');
+        const recommendationCount = document.getElementById('recommendationCount');
+        const recommendationCountValue = document.getElementById('recommendationCountValue');
+        const getRecommendation = document.getElementById('getRecommendation');
+        const loading = document.getElementById('loading');
+
+        recommendationCount.addEventListener('input', (e) => {
+            recommendationCountValue.textContent = e.target.value;
+        });
+
+        getRecommendation.addEventListener('click', async () => {
+            if (!songSelect.value) {
+                alert("Please select a song first!");
+                return;
+            }
+            loading.style.display = 'block'; // Show loading spinner
+            await getRecommendations();
+            loading.style.display = 'none'; // Hide loading spinner
+        });
+
+        async function getRecommendations() {
+            const formData = new FormData();
+            formData.append('song', songSelect.value);
+            formData.append('discovery_mode', discoveryMode.value);
+            formData.append('count', recommendationCount.value);
+
+            const response = await fetch('/recommend', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            displayRecommendations(data);
+        }
+
+        function displayRecommendations(data) {
+            const container = document.getElementById('recommendations');
+            container.innerHTML = '';
+
+            if (data.current_video) {
+                const selectedSongSection = document.createElement('div');
+                selectedSongSection.innerHTML = `
+                    <h2 class="text-2xl font-bold mb-4">Selected Song</h2>
+                    <div class="album-card">
+                        <img src="${data.current_video.thumbnail || '/static/images/placeholder.jpg'}" class="w-full rounded-lg mb-2">
+                        <h4 class="font-semibold">${data.current_video.track_name}</h4>
+                        <p class="text-gray-400">${data.current_video.track_artist}</p>
+                        ${data.current_video.audio_url
+                        ? `<button onclick="playAudio('${data.current_video.audio_url}')" class="mt-2 px-4 py-1 bg-green-500 text-white rounded hover:bg-green-600">▶️ Play</button>`
+                        : `<p class="text-red-500">Audio not available</p>`}
+                    </div>
+                `;
+                container.appendChild(selectedSongSection);
+            }
+
+            for (const [recType, songs] of Object.entries(data.recommendations)) {
+                if (!songs.length) continue;
+
+                const section = document.createElement('div');
+                section.innerHTML = `
+                    <h3 class="text-xl font-bold mt-8 mb-4">${recType}</h3>
+                    <div class="album-grid">
+                        ${songs.map(song => `
+                            <div class="album-card">
+                                <img src="${song.thumbnail || '/static/images/placeholder.jpg'}" class="w-full rounded-lg mb-2">
+                                <h4 class="font-semibold">${song.track_name}</h4>
+                                <p class="text-gray-400">${song.track_artist}</p>
+                                ${song.audio_url
+                        ? `<button onclick="playAudio('${song.audio_url}')" class="mt-2 px-4 py-1 bg-green-500 text-white rounded hover:bg-green-600">▶️ Play</button>`
+                        : `<p class="text-red-500">Audio not available</p>`}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(section);
+            }
+        }
+
+        function playAudio(audioUrl) {
+            document.getElementById('player').innerHTML = `
+                <audio controls autoplay>
+                    <source src="${audioUrl}" type="audio/mp3">
+                    Your browser does not support the audio element.
+                </audio>
             `;
             document.getElementById('player').classList.remove('hidden');
         }

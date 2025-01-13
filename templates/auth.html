@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login/Register - Music Explorer</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #121212;
+            color: white;
+        }
+
+        .form-container {
+            opacity: 1;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .form-container.hidden {
+            opacity: 0;
+            pointer-events: none;
+            position: absolute;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md space-y-8">
+        <!-- Header -->
+        <div class="text-center">
+            <h1 class="text-4xl font-bold text-white mb-8">Music Explorer</h1>
+
+            <!-- Toggle Buttons -->
+            <div class="flex justify-center space-x-4 mb-8">
+                <button id="loginToggle"
+                    class="px-6 py-2 rounded-full bg-green-500 text-white font-semibold transition-colors">
+                    Login
+                </button>
+                <button id="registerToggle"
+                    class="px-6 py-2 rounded-full bg-gray-700 text-gray-300 font-semibold transition-colors">
+                    Register
+                </button>
+            </div>
+        </div>
+
+        <!-- Login Form -->
+        <div id="loginForm" class="form-container">
+            <div class="bg-gray-800 p-8 rounded-lg shadow-xl">
+                <h2 class="text-2xl font-bold mb-6">Welcome Back!</h2>
+                <form class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Username</label>
+                        <input type="text" id="login-username" required
+                            class="w-full px-4 py-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-green-500 focus:ring-2 focus:ring-green-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Password</label>
+                        <input type="password" id="login-password" required
+                            class="w-full px-4 py-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-green-500 focus:ring-2 focus:ring-green-500">
+                    </div>
+                    <button type="submit"
+                        class="w-full py-3 rounded-lg bg-green-500 text-white font-semibold hover:bg-green-600 transition-colors">
+                        Login
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Register Form -->
+        <div id="registerForm" class="form-container hidden">
+            <div class="bg-gray-800 p-8 rounded-lg shadow-xl">
+                <h2 class="text-2xl font-bold mb-6">Create Account</h2>
+                <form class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Username</label>
+                        <input type="text" id="register-username" required
+                            class="w-full px-4 py-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-green-500 focus:ring-2 focus:ring-green-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Password</label>
+                        <input type="password" id="register-password" required
+                            class="w-full px-4 py-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-green-500 focus:ring-2 focus:ring-green-500">
+                    </div>
+                    <button type="submit"
+                        class="w-full py-3 rounded-lg bg-green-500 text-white font-semibold hover:bg-green-600 transition-colors">
+                        Register
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const loginToggle = document.getElementById('loginToggle');
+        const registerToggle = document.getElementById('registerToggle');
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+
+        // Toggle button event listeners
+        loginToggle.addEventListener('click', () => {
+            loginToggle.classList.remove('bg-gray-700', 'text-gray-300');
+            loginToggle.classList.add('bg-green-500', 'text-white');
+            registerToggle.classList.remove('bg-green-500', 'text-white');
+            registerToggle.classList.add('bg-gray-700', 'text-gray-300');
+
+            loginForm.classList.remove('hidden');
+            registerForm.classList.add('hidden');
+        });
+
+        registerToggle.addEventListener('click', () => {
+            registerToggle.classList.remove('bg-gray-700', 'text-gray-300');
+            registerToggle.classList.add('bg-green-500', 'text-white');
+            loginToggle.classList.remove('bg-green-500', 'text-white');
+            loginToggle.classList.add('bg-gray-700', 'text-gray-300');
+
+            registerForm.classList.remove('hidden');
+            loginForm.classList.add('hidden');
+        });
+
+        // Form submission handlers
+        document.querySelector('#loginForm form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    window.location.href = data.redirect;
+                } else {
+                    alert(data.error || 'Login failed');
+                }
+            } catch (error) {
+                alert('An error occurred. Please try again.');
+            }
+        });
+
+        document.querySelector('#registerForm form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('register-username').value;
+            const password = document.getElementById('register-password').value;
+
+            try {
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('Registration successful! Please login.');
+                    loginToggle.click(); // Switch to login form
+                } else {
+                    alert(data.error || 'Registration failed');
+                }
+            } catch (error) {
+                alert('An error occurred. Please try again.');
+            }
+        });
+    </script>
+</body>
+
+</html>

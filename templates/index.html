@@ -67,245 +67,6 @@
             z-index: 1000;
             border-top: 1px solid var(--background-elevated-base);
         }
-    </style>
-</head>
-
-<body>
-    <div class="sidebar p-4">
-        <h1 class="text-2xl font-bold mb-8">Music Explorer</h1>
-
-        <button class="w-full text-left p-2 hover:bg-gray-800 rounded mb-2">🏠 Home</button>
-        <button class="w-full text-left p-2 hover:bg-gray-800 rounded mb-2">🎵 Your Library</button>
-        <button class="w-full text-left p-2 hover:bg-gray-800 rounded mb-2">❤️ Liked Songs</button>
-
-        <hr class="my-4 border-gray-700">
-
-        <div class="mb-4">
-            <h3 class="text-sm font-semibold mb-2">Discovery Mode</h3>
-            <select id="discoveryMode" class="w-full bg-gray-800 text-white p-2 rounded">
-                <option value="popular">Popular Tracks</option>
-                <option value="hidden">Hidden Gems</option>
-            </select>
-        </div>
-
-        <div>
-            <h3 class="text-sm font-semibold mb-2">Recommendations</h3>
-            <input type="range" id="recommendationCount" min="1" max="10" value="5" class="w-full">
-            <span id="recommendationCountValue" class="text-sm">5</span>
-        </div>
-    </div>
-
-    <div class="main-content">
-        <div class="max-w-4xl mx-auto">
-            <div class="flex items-center mb-8">
-                <select id="songSelect" class="w-full bg-gray-800 text-white p-2 rounded">
-                    <option value="">Select a song...</option>
-                    {% for track in tracks %}
-                    <option value="{{ track }}">{{ track }}</option>
-                    {% endfor %}
-                </select>
-                <button id="getRecommendation"
-                    class="ml-4 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-                    Recommend
-                </button>
-            </div>
-
-            <div id="recommendations"></div>
-        </div>
-    </div>
-
-    <div id="player" class="player-bar hidden"></div>
-
-    <script>
-        const songSelect = document.getElementById('songSelect');
-        const discoveryMode = document.getElementById('discoveryMode');
-        const recommendationCount = document.getElementById('recommendationCount');
-        const recommendationCountValue = document.getElementById('recommendationCountValue');
-        const getRecommendation = document.getElementById('getRecommendation');
-
-        recommendationCount.addEventListener('input', (e) => {
-            recommendationCountValue.textContent = e.target.value;
-        });
-
-        getRecommendation.addEventListener('click', async () => {
-            if (!songSelect.value) {
-                alert("Please select a song first!");
-                return;
-            }
-            await getRecommendations();
-        });
-
-        async function getRecommendations() {
-            const formData = new FormData();
-            formData.append('song', songSelect.value);
-            formData.append('discovery_mode', discoveryMode.value);
-            formData.append('count', recommendationCount.value);
-
-            const response = await fetch('/recommend', {
-                method: 'POST',
-                body: formData
-            });
-
-            const data = await response.json();
-            displayRecommendations(data);
-        }
-
-        function displayRecommendations(data) {
-            const container = document.getElementById('recommendations');
-            container.innerHTML = '';
-
-            // Display the currently selected song at the top
-            if (data.current_video) {
-                const selectedSongSection = document.createElement('div');
-                selectedSongSection.innerHTML = `
-            <h2 class="text-2xl font-bold mb-4">Selected Song</h2>
-            <div class="album-card">
-                <img src="${data.current_video.thumbnail || '/static/images/placeholder.jpg'}" class="w-full rounded-lg mb-2">
-                <h4 class="font-semibold">${data.current_video.track_name}</h4>
-                <p class="text-gray-400">${data.current_video.track_artist}</p>
-                ${data.current_video.embeddable
-                        ? `<iframe
-                            width="100%"
-                            height="80"
-                            src="https://www.youtube.com/embed/${data.current_video.video_id}?autoplay=1"
-                            frameborder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        ></iframe>`
-                        : `<a
-                            href="${data.current_video.watch_url}"
-                            target="_blank"
-                            class="mt-2 px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-                        >
-                            Watch on YouTube
-                        </a>`
-                    }
-            </div>
-        `;
-                container.appendChild(selectedSongSection);
-            }
-
-            // Display recommended songs below the selected song
-            for (const [recType, songs] of Object.entries(data.recommendations)) {
-                if (!songs.length) continue;
-
-                const section = document.createElement('div');
-                section.innerHTML = `
-            <h3 class="text-xl font-bold mt-8 mb-4">${recType}</h3>
-            <div class="album-grid">
-                ${songs.map(song => `
-                    <div class="album-card">
-                        <img src="${song.thumbnail || '/static/images/placeholder.jpg'}" class="w-full rounded-lg mb-2">
-                        <h4 class="font-semibold">${song.track_name}</h4>
-                        <p class="text-gray-400">${song.track_artist}</p>
-                        ${song.embeddable
-                        ? `<button
-                                    onclick="playSong('${song.video_id}')"
-                                    class="mt-2 px-4 py-1 bg-green-500 text-white rounded hover:bg-green-600"
-                                >
-                                    ▶️ Play
-                                </button>`
-                        : `<a
-                                    href="${song.watch_url}"
-                                    target="_blank"
-                                    class="mt-2 px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-                                >
-                                    Watch on YouTube
-                                </a>`
-                    }
-                    </div>
-                `).join('')}
-            </div>
-        `;
-                container.appendChild(section);
-            }
-        }
-
-        function playSong(videoId) {
-            document.getElementById('player').innerHTML = `
-                <iframe
-                    width="100%"
-                    height="80"
-                    src="https://www.youtube.com/embed/${videoId}?autoplay=1"
-                    frameborder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                ></iframe>
-            `;
-            document.getElementById('player').classList.remove('hidden');
-        }
-    </script>
-</body>
-
-</html> -->
-
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Music Recommendation System</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <style>
-        :root {
-            --background-base: #121212;
-            --background-highlight: #1a1a1a;
-            --background-press: #000;
-            --background-elevated-base: #242424;
-            --background-elevated-highlight: #2a2a2a;
-            --text-base: #fff;
-            --text-subdued: #a7a7a7;
-            --essential-base: #fff;
-            --essential-subdued: #727272;
-            --primary: #1ed760;
-        }
-
-        body {
-            background-color: var(--background-base);
-            color: var(--text-base);
-        }
-
-        .sidebar {
-            background-color: var(--background-press);
-            width: 250px;
-            position: fixed;
-            height: 100vh;
-            left: 0;
-            top: 0;
-        }
-
-        .main-content {
-            margin-left: 250px;
-            padding: 20px;
-        }
-
-        .album-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 24px;
-            padding: 20px;
-        }
-
-        .album-card {
-            background: var(--background-elevated-base);
-            border-radius: 8px;
-            padding: 16px;
-            transition: background-color 0.3s ease;
-        }
-
-        .album-card:hover {
-            background: var(--background-elevated-highlight);
-        }
-
-        .player-bar {
-            position: fixed;
-            bottom: 0;
-            left: 250px;
-            right: 0;
-            background: var(--background-press);
-            padding: 16px;
-            z-index: 1000;
-            border-top: 1px solid var(--background-elevated-base);
-        }
 
         .loading {
             display: none;
@@ -337,7 +98,6 @@
 <body>
     <div class="sidebar p-4">
         <h1 class="text-2xl font-bold mb-8">Music Explorer</h1>
-
         <button class="w-full text-left p-2 hover:bg-gray-800 rounded mb-2">🏠 Home</button>
         <button class="w-full text-left p-2 hover:bg-gray-800 rounded mb-2">🎵 Your Library</button>
         <button class="w-full text-left p-2 hover:bg-gray-800 rounded mb-2">❤️ Liked Songs</button>
@@ -471,6 +231,666 @@
             `;
             document.getElementById('player').classList.remove('hidden');
         }
+    </script>
+</body>
+
+</html> -->
+
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Recommendation System</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --background-base: #121212;
+            --background-highlight: #1a1a1a;
+            --background-press: #000;
+            --background-elevated-base: #242424;
+            --background-elevated-highlight: #2a2a2a;
+            --text-base: #fff;
+            --text-subdued: #a7a7a7;
+            --essential-base: #fff;
+            --essential-subdued: #727272;
+            --primary: #1ed760;
+        }
+
+        body {
+            background-color: var(--background-base);
+            color: var(--text-base);
+        }
+
+        .sidebar {
+            background-color: var(--background-press);
+            width: 250px;
+            position: fixed;
+            height: 100vh;
+            left: 0;
+            top: 0;
+            overflow-y: auto;
+        }
+
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+        }
+
+        .album-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 24px;
+            padding: 20px;
+        }
+
+        .album-card {
+            background: var(--background-elevated-base);
+            border-radius: 8px;
+            padding: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        .album-card:hover {
+            background: var(--background-elevated-highlight);
+        }
+
+        .player-bar {
+            position: fixed;
+            bottom: 0;
+            left: 250px;
+            right: 0;
+            background: var(--background-press);
+            padding: 16px;
+            z-index: 1000;
+            border-top: 1px solid var(--background-elevated-base);
+        }
+
+        .loading {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #1ed760;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            z-index: 1000;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .profile-section {
+            display: none;
+            padding: 20px;
+            background: var(--background-elevated-base);
+            border-radius: 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="sidebar p-4">
+        <h1 class="text-2xl font-bold mb-8">Music Explorer</h1>
+
+        <button id="profileBtn" class="w-full text-left p-2 hover:bg-gray-800 rounded mb-2">
+            👤 {{ user }}
+        </button>
+
+        <hr class="my-4 border-gray-700">
+
+        <!-- Discovery Mode -->
+        <div class="mb-4">
+            <h3 class="text-sm font-semibold mb-2">Discovery Mode</h3>
+            <select id="discoveryMode" class="w-full bg-gray-800 text-white p-2 rounded">
+                <option value="popular">Popular Tracks</option>
+                <option value="hidden">Hidden Gems</option>
+            </select>
+        </div>
+
+        <!-- Recommendation Count -->
+        <div class="mb-4">
+            <h3 class="text-sm font-semibold mb-2">Recommendations</h3>
+            <input type="range" id="recommendationCount" min="1" max="10" value="1" class="w-full">
+            <span id="recommendationCountValue" class="text-sm">1</span>
+        </div>
+
+        <!-- Playlists Section -->
+        <div class="mb-4">
+            <h3 class="text-sm font-semibold mb-2">Your Playlists</h3>
+            <div id="playlists-container" class="space-y-2">
+                <!-- Playlists will be added here -->
+            </div>
+            <div class="mt-2">
+                <input type="text" id="newPlaylistInput" placeholder="New playlist name"
+                    class="w-full bg-gray-700 text-white p-2 rounded mb-2">
+                <button id="createPlaylistBtn" class="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600">
+                    Create Playlist
+                </button>
+            </div>
+        </div>
+
+        <!-- History Section -->
+        <div class="mb-4">
+            <h3 class="text-sm font-semibold mb-2">Recently Played</h3>
+            <div id="history-container" class="space-y-2">
+                <!-- History will be added here -->
+            </div>
+        </div>
+    </div>
+
+    <div id="playlistModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50">
+        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
+                    w-full max-w-2xl bg-gray-800 rounded-lg p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="playlistModalTitle" class="text-xl font-bold"></h3>
+                <button onclick="closePlaylistModal()" class="text-gray-400 hover:text-white">&times;</button>
+            </div>
+            <div id="playlistModalContent" class="max-h-96 overflow-y-auto">
+                <!-- Playlist songs will be added here -->
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <!-- Main Content Section -->
+        <div class="max-w-4xl mx-auto" id="mainContentSection">
+            <div class="flex items-center mb-8">
+                <select id="songSelect" class="w-full bg-gray-800 text-white p-2 rounded">
+                    <option value="">Select a song...</option>
+                    {% for track in tracks %}
+                    <option value="{{ track }}">{{ track }}</option>
+                    {% endfor %}
+                </select>
+                <button id="getRecommendation"
+                    class="ml-4 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+                    Recommend
+                </button>
+            </div>
+
+            <div id="recommendations"></div>
+        </div>
+
+        <!-- Profile Section -->
+        <div id="profileSection" class="profile-section">
+            <div class="bg-gray-800 p-6 rounded-lg max-w-4xl mx-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Profile</h2>
+                    <button id="closeProfile" class="text-gray-400 hover:text-white">&times;</button>
+                </div>
+
+                <div class="flex items-center mb-8">
+                    <div class="bg-green-500 rounded-full p-4">
+                        <span class="text-2xl">👤</span>
+                    </div>
+                    <div class="ml-4">
+                        <h3 id="profileUsername" class="text-xl font-semibold">{{ user }}</h3>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-lg font-semibold mb-4">Your Playlists</h4>
+                        <div id="profilePlaylists" class="space-y-4">
+                            <!-- Playlists will be added here -->
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-semibold mb-4">Recently Played</h4>
+                        <div id="profileHistory" class="space-y-4">
+                            <!-- History will be added here -->
+                        </div>
+                    </div>
+                </div>
+
+                <button id="logoutBtn" class="mt-8 px-6 py-2 bg-red-500 text-white rounded hover:bg-red-600">
+                    Logout
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="player" class="player-bar hidden"></div>
+    <div class="loading" id="loading"></div>
+
+    <script>
+        // Global variables
+        let userPlaylists = {};
+        let playHistory = [];
+        let currentRecommendations = null;
+
+        // DOM Elements
+        const songSelect = document.getElementById('songSelect');
+        const discoveryMode = document.getElementById('discoveryMode');
+        const recommendationCount = document.getElementById('recommendationCount');
+        const recommendationCountValue = document.getElementById('recommendationCountValue');
+        const getRecommendation = document.getElementById('getRecommendation');
+        const loading = document.getElementById('loading');
+        const mainContentSection = document.getElementById('mainContentSection');
+        const profileSection = document.getElementById('profileSection');
+
+        // Event Listeners
+        recommendationCount.addEventListener('input', (e) => {
+            recommendationCountValue.textContent = e.target.value;
+        });
+
+        getRecommendation.addEventListener('click', async () => {
+            if (!songSelect.value) {
+                alert("Please select a song first!");
+                return;
+            }
+            loading.style.display = 'block';
+            await getRecommendations();
+            loading.style.display = 'none';
+        });
+
+        document.getElementById('profileBtn').addEventListener('click', showProfile);
+        document.getElementById('closeProfile').addEventListener('click', hideProfile);
+        document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+        document.getElementById('createPlaylistBtn').addEventListener('click', createPlaylist);
+
+        // Profile Functions
+        function showProfile() {
+            mainContentSection.style.display = 'none';
+            profileSection.style.display = 'block';
+            updateProfileUI();
+        }
+
+        function hideProfile() {
+            profileSection.style.display = 'none';
+            mainContentSection.style.display = 'block';
+        }
+
+        async function handleLogout() {
+            try {
+                const response = await fetch('/logout', {
+                    method: 'POST'
+                });
+                if (response.ok) {
+                    window.location.href = '/';
+                }
+            } catch (error) {
+                console.error('Error logging out:', error);
+            }
+        }
+
+        // Playlist and History Functions
+        async function fetchUserData() {
+            try {
+                const response = await fetch('/profile');
+                const data = await response.json();
+                if (response.ok) {
+                    userPlaylists = data.playlists || {};
+                    playHistory = data.history || [];
+                    updatePlaylistsUI();
+                    updateHistoryUI();
+                }
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+            }
+        }
+
+        // Update window click handler for modal
+        window.addEventListener('click', (event) => {
+            const modal = document.getElementById('playlistModal');
+            if (event.target === modal) {
+                closePlaylistModal();
+            }
+        });
+
+        async function createPlaylist() {
+            const input = document.getElementById('newPlaylistInput');
+            const playlistName = input.value.trim();
+
+            if (!playlistName) return;
+
+            try {
+                const response = await fetch('/create_playlist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ playlist_name: playlistName })
+                });
+
+                if (response.ok) {
+                    input.value = '';
+                    await fetchUserData();
+                } else {
+                    const data = await response.json();
+                    alert(data.error || 'Failed to create playlist');
+                }
+            } catch (error) {
+                console.error('Error creating playlist:', error);
+                alert('Failed to create playlist');
+            }
+        }
+
+        async function addToPlaylist(playlistName, songName) {
+            if (!playlistName) {
+                alert('Please select a playlist');
+                return;
+            }
+
+            try {
+                const response = await fetch('/add_to_playlist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ playlist_name: playlistName, track: songName })
+                });
+
+                if (response.ok) {
+                    await fetchUserData();
+                    alert('Song added to playlist!');
+                } else {
+                    const data = await response.json();
+                    alert(data.error || 'Failed to add song to playlist');
+                }
+            } catch (error) {
+                console.error('Error adding song to playlist:', error);
+                alert('Failed to add song to playlist');
+            }
+        }
+
+        function updatePlaylistsUI() {
+            const playlistsContainer = document.getElementById('playlists-container');
+            playlistsContainer.innerHTML = Object.keys(userPlaylists).map(name => `
+                <button class="w-full text-left p-2 hover:bg-gray-800 rounded text-sm">
+                    🎵 ${name} (${userPlaylists[name].length})
+                </button>
+            `).join('');
+
+            updateProfileUI();
+        }
+
+        function updateHistoryUI() {
+            const historyContainer = document.getElementById('history-container');
+            historyContainer.innerHTML = playHistory.slice(0, 5).map(song => `
+                <div class="text-sm text-gray-400 p-2">
+                    🎵 ${song}
+                </div>
+            `).join('');
+
+            updateProfileUI();
+        }
+
+        function updateProfileUI() {
+            const profilePlaylists = document.getElementById('profilePlaylists');
+            profilePlaylists.innerHTML = Object.entries(userPlaylists).map(([name, songs]) => `
+                <div class="bg-gray-700 p-4 rounded">
+                    <h5 class="font-semibold mb-2">${name}</h5>
+                    <div class="space-y-1">
+                        ${songs.map(song => `
+                            <div class="text-sm text-gray-300">🎵 ${song}</div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+
+            const profileHistory = document.getElementById('profileHistory');
+            profileHistory.innerHTML = playHistory.map(song => `
+                <div class="bg-gray-700 p-4 rounded">
+                    <div class="text-sm">🎵 ${song}</div>
+                </div>
+            `).join('');
+        }
+
+        // Recommendation Functions
+        async function getRecommendations() {
+            const formData = new FormData();
+            formData.append('song', songSelect.value);
+            formData.append('discovery_mode', discoveryMode.value);
+            formData.append('count', recommendationCount.value);
+
+            try {
+                const response = await fetch('/recommend', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                currentRecommendations = data;
+                displayRecommendations(data);
+            } catch (error) {
+                console.error('Error getting recommendations:', error);
+                alert('Failed to get recommendations');
+            }
+        }
+
+
+        async function fetchSongDetails(songName) {
+            try {
+                const formData = new FormData();
+                formData.append('song', songName);
+                formData.append('discovery_mode', 'popular');
+                formData.append('count', 1);
+
+                const response = await fetch('/recommend', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                return data.current_video;
+            } catch (error) {
+                console.error('Error fetching song details:', error);
+                return null;
+            }
+        }
+
+        function updatePlaylistsUI() {
+            const playlistsContainer = document.getElementById('playlists-container');
+            playlistsContainer.innerHTML = Object.entries(userPlaylists).map(([name, songs]) => `
+        <button onclick="showPlaylistSongs('${name}')" 
+                class="w-full text-left p-2 hover:bg-gray-800 rounded text-sm flex items-center justify-between">
+            <span>🎵 ${name}</span>
+            <span class="text-gray-400">${songs.length} songs</span>
+        </button>
+    `).join('');
+        }
+
+        function updateHistoryUI() {
+            const historyContainer = document.getElementById('history-container');
+            historyContainer.innerHTML = playHistory.slice(0, 5).map(song => `
+        <button onclick="playHistorySong('${song}')" 
+                class="w-full text-left p-2 hover:bg-gray-800 rounded text-sm flex items-center group">
+            <span class="mr-2">🎵</span>
+            <span class="flex-grow">${song}</span>
+            <span class="text-green-500 opacity-0 group-hover:opacity-100">▶️</span>
+        </button>
+    `).join('');
+        }
+
+        async function playHistorySong(songName) {
+            const loading = document.getElementById('loading');
+            loading.style.display = 'block';
+
+            try {
+                const songData = await fetchSongDetails(songName);
+                if (songData && songData.audio_url) {
+                    playAudio(songData.audio_url, songData);
+                } else {
+                    alert('Cannot play this song at the moment');
+                }
+            } catch (error) {
+                console.error('Error playing song:', error);
+                alert('Error playing song');
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        async function showPlaylistSongs(playlistName) {
+            const modal = document.getElementById('playlistModal');
+            const modalTitle = document.getElementById('playlistModalTitle');
+            const modalContent = document.getElementById('playlistModalContent');
+
+            modalTitle.textContent = playlistName;
+
+            const songs = userPlaylists[playlistName] || [];
+            modalContent.innerHTML = `
+        <div class="space-y-2">
+            ${songs.length > 0 ? songs.map(song => `
+                <div class="bg-gray-700 p-3 rounded flex items-center justify-between group">
+                    <span class="flex-grow">${song}</span>
+                    <div class="space-x-2">
+                        <button onclick="playPlaylistSong('${song}')" 
+                                class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600">
+                            ▶️ Play
+                        </button>
+                        <button onclick="removeFromPlaylist('${playlistName}', '${song}')"
+                                class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            `).join('') : '<p class="text-gray-400">No songs in this playlist</p>'}
+        </div>
+    `;
+
+            modal.classList.remove('hidden');
+        }
+
+        function closePlaylistModal() {
+            document.getElementById('playlistModal').classList.add('hidden');
+        }
+
+        async function playPlaylistSong(songName) {
+            await playHistorySong(songName); // Reuse the playHistorySong function
+            closePlaylistModal();
+        }
+
+        async function removeFromPlaylist(playlistName, songName) {
+            try {
+                const response = await fetch('/remove_from_playlist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ playlist_name: playlistName, track: songName })
+                });
+
+                if (response.ok) {
+                    await fetchUserData(); // Refresh playlists
+                    showPlaylistSongs(playlistName); // Refresh modal content
+                } else {
+                    const data = await response.json();
+                    alert(data.error || 'Failed to remove song from playlist');
+                }
+            } catch (error) {
+                console.error('Error removing song from playlist:', error);
+                alert('Failed to remove song from playlist');
+            }
+        }
+
+        async function playAudio(audioUrl, songData) {
+            document.getElementById('player').innerHTML = `
+                <audio controls autoplay>
+                    <source src="${audioUrl}" type="audio/mp3">
+                    Your browser does not support the audio element.</audio>
+            `;
+            document.getElementById('player').classList.remove('hidden');
+
+            // Update history
+            try {
+                await fetch('/add_to_history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ track: songData.track_name })
+                });
+                await fetchUserData(); // Refresh history
+            } catch (error) {
+                console.error('Error updating history:', error);
+            }
+        }
+
+        function displayRecommendations(data) {
+            const container = document.getElementById('recommendations');
+            container.innerHTML = '';
+
+            if (data.current_video) {
+                const selectedSongSection = document.createElement('div');
+                selectedSongSection.innerHTML = `
+                    <h2 class="text-2xl font-bold mb-4">Selected Song</h2>
+                    <div class="album-card">
+                        <img src="${data.current_video.thumbnail || '/static/images/placeholder.jpg'}" 
+                             class="w-full rounded-lg mb-2">
+                        <h4 class="font-semibold">${data.current_video.track_name}</h4>
+                        <p class="text-gray-400">${data.current_video.track_artist}</p>
+                        <div class="flex items-center space-x-2 mt-2">
+                            ${data.current_video.audio_url ? `
+                                <button onclick='playAudio("${data.current_video.audio_url}", 
+                                    ${JSON.stringify(data.current_video)})' 
+                                    class="px-4 py-1 bg-green-500 text-white rounded hover:bg-green-600">
+                                    ▶️ Play
+                                </button>
+                                <select onchange="addToPlaylist(this.value, '${data.current_video.track_name}')" 
+                                        class="playlist-select bg-gray-700 text-white p-1 rounded">
+                                    <option value="">Add to playlist...</option>
+                                    ${Object.keys(userPlaylists).map(name =>
+                    `<option value="${name}">${name}</option>`
+                ).join('')}
+                                </select>
+                            ` : `<p class="text-red-500">Audio not available</p>`}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(selectedSongSection);
+            }
+
+            for (const [recType, songs] of Object.entries(data.recommendations)) {
+                if (!songs.length) continue;
+
+                const section = document.createElement('div');
+                section.innerHTML = `
+                    <h3 class="text-xl font-bold mt-8 mb-4">${recType}</h3>
+                    <div class="album-grid">
+                        ${songs.map(song => `
+                            <div class="album-card">
+                                <img src="${song.thumbnail || '/static/images/placeholder.jpg'}" 
+                                     class="w-full rounded-lg mb-2">
+                                <h4 class="font-semibold">${song.track_name}</h4>
+                                <p class="text-gray-400">${song.track_artist}</p>
+                                <div class="flex items-center space-x-2 mt-2">
+                                    ${song.audio_url ? `
+                                        <button onclick='playAudio("${song.audio_url}", 
+                                            ${JSON.stringify(song)})' 
+                                            class="px-4 py-1 bg-green-500 text-white rounded hover:bg-green-600">
+                                            ▶️ Play
+                                        </button>
+                                        <select onchange="addToPlaylist(this.value, '${song.track_name}')" 
+                                                class="playlist-select bg-gray-700 text-white p-1 rounded">
+                                            <option value="">Add to playlist...</option>
+                                            ${Object.keys(userPlaylists).map(name =>
+                    `<option value="${name}">${name}</option>`
+                ).join('')}
+                                        </select>
+                                    ` : `<p class="text-red-500">Audio not available</p>`}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(section);
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            await fetchUserData();
+
+            // Update data periodically
+            setInterval(fetchUserData, 30000); // Update every 30 seconds
+        });
     </script>
 </body>
 
